@@ -1,1 +1,317 @@
-
+import sys
+ 
+try:
+    sys.stdout.reconfigure(encoding="utf-8")
+except Exception:
+    pass
+ 
+PRIORITY_AGE = 65
+ 
+ 
+class Node:
+    __slots__ = ("data", "next")
+ 
+    def __init__(self, data):
+        self.data = data
+        self.next = None
+ 
+ 
+class Queue:
+    def __init__(self):
+        self.head = None
+        self.tail = None
+        self.size = 0
+ 
+    def is_empty(self):
+        return self.head is None
+ 
+    def enqueue(self, data):
+        node = Node(data)
+        if self.tail is None:
+            self.head = self.tail = node
+        else:
+            self.tail.next = node
+            self.tail = node
+        self.size += 1
+ 
+    def dequeue(self):
+        if self.head is None:
+            return None
+        data = self.head.data
+        self.head = self.head.next
+        if self.head is None:
+            self.tail = None
+        self.size -= 1
+        return data
+ 
+    def to_list(self):
+        out, cur = [], self.head
+        while cur is not None:
+            out.append(cur.data)
+            cur = cur.next
+        return out
+ 
+ 
+# ====================================================================
+# MƏSƏLƏ 1: Aptekdə növbə
+# ====================================================================
+ 
+ 
+class Customer:
+    def __init__(self, name, medicine):
+        self.name = name
+        self.medicine = medicine
+ 
+    def __str__(self):
+        return f"{self.name} (dərman: {self.medicine})"
+ 
+ 
+class Pharmacy:
+    def __init__(self):
+        self.queue = Queue()
+ 
+    def add_customer(self, name, medicine):
+        name, medicine = name.strip(), medicine.strip()
+        if not name or not medicine:
+            print("Xəta: ad və dərman adı boş ola bilməz.")
+            return False
+        self.queue.enqueue(Customer(name, medicine))
+        print(f"Növbəyə əlavə olundu: {name} -> {medicine}")
+        return True
+ 
+    def serve_customer(self):
+        customer = self.queue.dequeue()
+        if customer is None:
+            print("Növbə boşdur, xidmət ediləcək müştəri yoxdur.")
+            return None
+        print(f"Xidmət edildi: {customer.name} dərmanını aldı ({customer.medicine}).")
+        return customer
+ 
+    def display_queue(self):
+        if self.queue.is_empty():
+            print("Növbə boşdur.")
+            return
+        print(f"Növbədə {self.queue.size} müştəri var:")
+        for i, c in enumerate(self.queue.to_list(), start=1):
+            print(f"  {i}. {c}")
+ 
+ 
+# ====================================================================
+# MƏSƏLƏ 2: Avtobus dayanacağında növbə və prioritet
+# ====================================================================
+ 
+ 
+class Passenger:
+    def __init__(self, name, age):
+        self.name = name
+        self.age = age
+ 
+    def __str__(self):
+        return f"{self.name} ({self.age} yaş)"
+ 
+ 
+class BusStop:
+    def __init__(self):
+        self.priority_queue = Queue()
+        self.regular_queue = Queue()
+ 
+    def add_passenger(self, name, age):
+        name = name.strip()
+        if not name:
+            print("Xəta: ad boş ola bilməz.")
+            return False
+        if not isinstance(age, int) or isinstance(age, bool) or not (0 < age < 130):
+            print(f"Xəta: yaş düzgün deyil ({age!r}). 1-129 arası tam ədəd daxil edin.")
+            return False
+        passenger = Passenger(name, age)
+        if age > PRIORITY_AGE:
+            self.priority_queue.enqueue(passenger)
+            print(f"Prioritet növbəsinə əlavə olundu: {passenger}")
+        else:
+            self.regular_queue.enqueue(passenger)
+            print(f"Adi növbəyə əlavə olundu: {passenger}")
+        return True
+ 
+    def board_passenger(self):
+        if not self.priority_queue.is_empty():
+            p = self.priority_queue.dequeue()
+            print(f"Avtobusa mindi (prioritet): {p}")
+            return p
+        if not self.regular_queue.is_empty():
+            p = self.regular_queue.dequeue()
+            print(f"Avtobusa mindi (adi növbə): {p}")
+            return p
+        print("Dayanacaqda sərnişin yoxdur.")
+        return None
+ 
+    def display_queues(self):
+        print(f"Prioritet növbəsi ({self.priority_queue.size}):")
+        if self.priority_queue.is_empty():
+            print("  (boşdur)")
+        for i, p in enumerate(self.priority_queue.to_list(), start=1):
+            print(f"  {i}. {p}")
+        print(f"Adi növbə ({self.regular_queue.size}):")
+        if self.regular_queue.is_empty():
+            print("  (boşdur)")
+        for i, p in enumerate(self.regular_queue.to_list(), start=1):
+            print(f"  {i}. {p}")
+ 
+ 
+def header(text):
+    print("\n" + "=" * 64)
+    print(text)
+    print("=" * 64)
+ 
+ 
+def test_problem1():
+    header("MƏSƏLƏ 1 - Test 1: Normal iş ardıcıllığı (FIFO yoxlanışı)")
+    ph = Pharmacy()
+    ph.add_customer("Aysel Məmmədova", "Paracetamol")
+    ph.add_customer("Elvin Həsənov", "Aspirin")
+    ph.add_customer("Nigar Quliyeva", "Ibuprofen")
+    ph.display_queue()
+    first = ph.serve_customer()
+    assert first.name == "Aysel Məmmədova", "İlk gələn ilk xidmət almalıdır"
+    ph.display_queue()
+    assert [c.name for c in ph.queue.to_list()] == ["Elvin Həsənov", "Nigar Quliyeva"]
+ 
+    header("MƏSƏLƏ 1 - Test 2: Boş növbə (sərhəd halı)")
+    empty = Pharmacy()
+    empty.display_queue()
+    assert empty.serve_customer() is None
+ 
+    header("MƏSƏLƏ 1 - Test 3: Hamı xidmət alır, sonra yenə əlavə olunur")
+    ph2 = Pharmacy()
+    ph2.add_customer("Rəşad", "Vitamin C")
+    ph2.serve_customer()
+    ph2.display_queue()
+    assert ph2.queue.head is None and ph2.queue.tail is None, \
+        "Boş növbədə head və tail None olmalıdır"
+    ph2.add_customer("Leyla", "Nurofen")
+    ph2.display_queue()
+    assert [c.name for c in ph2.queue.to_list()] == ["Leyla"]
+ 
+    header("MƏSƏLƏ 1 - Test 4: Yanlış giriş (boş ad / boş dərman)")
+    ph3 = Pharmacy()
+    assert ph3.add_customer("", "Aspirin") is False
+    assert ph3.add_customer("Kamran", "   ") is False
+    ph3.display_queue()
+ 
+ 
+def test_problem2():
+    header("MƏSƏLƏ 2 - Test 1: Qarışıq növbə, prioritet qaydası")
+    bs = BusStop()
+    for name, age in [("Əli", 30), ("Fatimə xala", 72), ("Günel", 25),
+                      ("Hüseyn baba", 80), ("Murad", 41)]:
+        bs.add_passenger(name, age)
+    bs.display_queues()
+    print()
+    order = []
+    while True:
+        p = bs.board_passenger()
+        if p is None:
+            break
+        order.append(p.name)
+    print("Minmə ardıcıllığı:", order)
+    assert order == ["Fatimə xala", "Hüseyn baba", "Əli", "Günel", "Murad"], \
+        "Əvvəlcə yaşlılar (öz növbəsi ilə), sonra adi növbə minməlidir"
+ 
+    header("MƏSƏLƏ 2 - Test 2: Sərhəd yaşları (64, 65, 66)")
+    bs2 = BusStop()
+    bs2.add_passenger("Anar", 64)
+    bs2.add_passenger("Bəxtiyar", 65)
+    bs2.add_passenger("Cəmilə", 66)
+    bs2.display_queues()
+    assert bs2.priority_queue.size == 1 and bs2.regular_queue.size == 2, \
+        "Yalnız 65-dən YUXARI (66) prioritetli sayılmalıdır"
+ 
+    header("MƏSƏLƏ 2 - Test 3: Yalnız adi sərnişinlər")
+    bs3 = BusStop()
+    bs3.add_passenger("Orxan", 20)
+    bs3.add_passenger("Sevinc", 35)
+    assert bs3.board_passenger().name == "Orxan"
+    bs3.display_queues()
+ 
+    header("MƏSƏLƏ 2 - Test 4: Yalnız yaşlılar və boş dayanacaq")
+    bs4 = BusStop()
+    bs4.add_passenger("Cəmil baba", 70)
+    assert bs4.board_passenger().name == "Cəmil baba"
+    assert bs4.board_passenger() is None
+    bs4.display_queues()
+ 
+    header("MƏSƏLƏ 2 - Test 5: Prioritetli sonradan gəlir, yenə də öndə minir")
+    bs5 = BusStop()
+    bs5.add_passenger("Tural", 28)
+    bs5.add_passenger("Zaur", 33)
+    bs5.add_passenger("Səkinə nənə", 68)
+    assert bs5.board_passenger().name == "Səkinə nənə"
+    assert bs5.board_passenger().name == "Tural"
+ 
+    header("MƏSƏLƏ 2 - Test 6: Yanlış giriş (mənfi yaş, mətn, boş ad)")
+    bs6 = BusStop()
+    assert bs6.add_passenger("Test", -5) is False
+    assert bs6.add_passenger("Test", "otuz") is False
+    assert bs6.add_passenger("", 30) is False
+    bs6.display_queues()
+ 
+ 
+def read_age():
+    raw = input("Yaş: ").strip()
+    try:
+        return int(raw)
+    except ValueError:
+        return raw
+ 
+ 
+def menu_pharmacy():
+    ph = Pharmacy()
+    while True:
+        print("\n--- Aptek ---")
+        print("1) Müştəri əlavə et  2) Xidmət et  3) Növbəni göstər  0) Geri")
+        c = input("Seçim: ").strip()
+        if c == "1":
+            ph.add_customer(input("Ad: "), input("Dərman: "))
+        elif c == "2":
+            ph.serve_customer()
+        elif c == "3":
+            ph.display_queue()
+        elif c == "0":
+            return
+ 
+ 
+def menu_bus():
+    bs = BusStop()
+    while True:
+        print("\n--- Avtobus dayanacağı ---")
+        print("1) Sərnişin əlavə et  2) Avtobusa mindir  3) Növbələri göstər  0) Geri")
+        c = input("Seçim: ").strip()
+        if c == "1":
+            name = input("Ad: ")
+            bs.add_passenger(name, read_age())
+        elif c == "2":
+            bs.board_passenger()
+        elif c == "3":
+            bs.display_queues()
+        elif c == "0":
+            return
+ 
+ 
+def main():
+    if "--menu" in sys.argv:
+        while True:
+            print("\n1) Aptek növbəsi  2) Avtobus dayanacağı  0) Çıxış")
+            c = input("Seçim: ").strip()
+            if c == "1":
+                menu_pharmacy()
+            elif c == "2":
+                menu_bus()
+            elif c == "0":
+                break
+        return
+    test_problem1()
+    test_problem2()
+    header("Bütün testlər uğurla keçdi")
+ 
+ 
+if __name__ == "__main__":
+    main()
